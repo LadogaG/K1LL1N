@@ -8,6 +8,7 @@ using TMPro;
 
 public class Health : MonoBehaviour
 {
+    public static Health Instance { get; private set; }
     [SerializeField] Gradient healthGradient;
     [SerializeField] Gradient staminaGradient;
 
@@ -86,6 +87,7 @@ public class Health : MonoBehaviour
 
     void Awake()
     {
+        Instance = this;
         movement = GetComponent<Movement>();
         rb = GetComponent<Rigidbody>();
         noiseAndGrain = Camera.main.GetComponent<NoiseAndGrain>();

@@ -160,12 +160,12 @@ public class Axe : WeaponBase
     {
         if (altCooldownTimer > 0) return;
         Manager.Instance.Sound(altSwing);
-        Weapon.Instance.StartCoroutine(HoldAxeAltAttackCoroutine());
+        StartCoroutine(HoldAxeAltAttackCoroutine());
         altCooldownTimer = altCooldown;
     }
     public override void ReleaseAltAttack()
     {
-        Weapon.Instance.StartCoroutine(AxeAltAttackCoroutine());
+        StartCoroutine(AxeAltAttackCoroutine());
     }
     
     public override string GetAmmoText() => "";

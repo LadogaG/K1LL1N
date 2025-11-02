@@ -133,7 +133,7 @@ public class Shotgun : WeaponBase
     public override void HoldAltAttack()
     {
         if (altCooldownTimer > 0) return;
-        Weapon.Instance.StartCoroutine(ShotgunAltAttack());
+        StartCoroutine(ShotgunAltAttack());
     }
     public override void ReleaseAltAttack()
     {

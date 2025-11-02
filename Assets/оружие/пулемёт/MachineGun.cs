@@ -49,7 +49,7 @@ public class MachineGun : WeaponBase
         if (cooldownTimer > 0) return;
         if (ammo < 1 && !ammoRegen)
         {
-            Weapon.Instance.StartCoroutine(AmmoRegen());
+            StartCoroutine(AmmoRegen());
             Manager.Instance.Sound(primaryStop);
         }
         if (ammo < 1) return;
@@ -75,7 +75,7 @@ public class MachineGun : WeaponBase
     }
     public override void ReleasePrimaryAttack()
     {
-        Weapon.Instance.StartCoroutine(AmmoRegen());
+        StartCoroutine(AmmoRegen());
         Manager.Instance.Sound(primaryStop);
     }
 

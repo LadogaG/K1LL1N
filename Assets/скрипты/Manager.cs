@@ -1,5 +1,7 @@
 using UnityStandardAssets.ImageEffects;
+using DamageNumbersPro.Demo;
 using System.Collections;
+using DamageNumbersPro;
 using UnityEngine.UI;
 using UnityEngine;
 
@@ -17,6 +19,15 @@ public class Manager : MonoBehaviour
     public bool game = false;
     public bool music = false;
     [HideInInspector] public Rigidbody rb;
+    [HideInInspector]  float lineFadeTime = 0.5f;
+
+    [Header("Enemy")]
+    [SerializeField] DamageNumber textPrefab;
+    [SerializeField] DamageNumber critPrefab;
+    DNP_PrefabSettings settings;
+    public Transform healthBarPrefab;
+    [SerializeField] public GameObject BloodAttach;
+    [SerializeField] public GameObject[] BloodFX;
 
     [Header("UI Settings")]
     public GameObject pausePanel;
@@ -27,7 +38,7 @@ public class Manager : MonoBehaviour
 
     [Header("Particles Settings")]
     public ParticleSystem sparks;
-    public ParticleSystem frictionSparks;
+    public ParticleSystem friction;
     public ParticleSystem landSparks;
     public ParticleSystem stepParticle;
     public ParticleSystem stepSparks;
@@ -109,7 +120,7 @@ public class Manager : MonoBehaviour
         }
     }
 
-    public void Damage(float damage, AudioSource newAudioSource = null)
+    public void Damage(float damage, Vector3 target, Transform enemy, bool crit = false, AudioSource newAudioSource = null)
     {
         dps += damage;
         levelDamage += damage;
@@ -117,10 +128,11 @@ public class Manager : MonoBehaviour
         Sound(damageSound, Random.Range(0.8f, 1) * Mathf.Min(damage / 20, 1));
         Sound(damageSound, Random.Range(0.8f, 1) * Mathf.Min(damage / 10, 1), newAudioSource);
         Popup(damageAim, 0.25f);
+        DNPSet(target, damage, enemy, crit);
         totalDamage += damage;
     }
 
-    public void Kill(float damage, AudioSource newAudioSource = null)
+    public void Kill(float damage, Vector3 target, Transform enemy, bool crit = false, AudioSource newAudioSource = null)
     {
         dps += damage;
         levelDamage += damage;
@@ -130,7 +142,57 @@ public class Manager : MonoBehaviour
         Popup(killAim, 0.25f);
         Flash();
         Pause(0.2f);
+        DNPSet(target, damage, enemy, crit);
         kills++;
+    }
+
+    protected void DNPSet(Vector3 target, float number, Transform enemy, bool crit = false)
+    {
+        DamageNumber pref = crit ? critPrefab : textPrefab;
+        settings = pref.gameObject.GetComponent<DNP_PrefabSettings>();
+        if (pref.digitSettings.decimals == 0)
+        {
+            number = Mathf.Floor(number);
+        }
+        DamageNumber newDamageNumber = pref.Spawn(target, number);
+        settings.Apply(newDamageNumber);
+        newDamageNumber.enableFollowing = true;
+        newDamageNumber.followedTarget = enemy;
+    }
+
+    public LineRenderer GetLineRenderer(Color color)
+    {
+        GameObject lrObj = new GameObject("LineRenderer");
+        lrObj.transform.SetParent(transform);
+        LineRenderer newLr = lrObj.AddComponent<LineRenderer>();
+        newLr.startWidth = 0.25f;
+        newLr.endWidth = 0.25f;
+        newLr.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended"));
+        newLr.startColor = color;
+        newLr.endColor = color;
+        newLr.positionCount = 2;
+        newLr.enabled = true;
+        return newLr;
+    }
+
+    public IEnumerator ShowLineRenderer(Vector3 start, Vector3 end, LineRenderer lr, ParticleSystem particle = null)
+    {
+        if (particle == null) particle = sparks;
+        lr.SetPosition(0, start);
+        lr.SetPosition(1, end);
+        float elapsed = 0f;
+        ParticleSystem sparksParticles = Instantiate(particle, end, Quaternion.LookRotation(start - end)).GetComponent<ParticleSystem>();
+        sparksParticles.Play();
+        Destroy(sparksParticles.gameObject, 5);
+        while (elapsed < lineFadeTime)
+        {
+            elapsed += Time.deltaTime;
+            lr.startWidth /= ((elapsed + 1) / lineFadeTime) + 1;
+            lr.endWidth /= ((elapsed + 1) / lineFadeTime) + 1;
+            yield return null;
+        }
+        Destroy(lr.gameObject);
+        Debug.Log("[Weapon] LineRenderer faded out");
     }
 
     public void Shrink(Transform target, float timeBeforeShrink = 0, float shrinkDuration = 0) => StartCoroutine(ShrinkIE(target, timeBeforeShrink, shrinkDuration));

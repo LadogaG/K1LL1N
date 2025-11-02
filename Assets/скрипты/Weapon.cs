@@ -33,6 +33,7 @@ public class Weapon : MonoBehaviour
     [SerializeField] MachineGun machineGun;
     [SerializeField] int weaponsCount = 0;
     [SerializeField] Vector3[] weaponPoses;
+    [SerializeField] float bulletSpeed = 20f;
     List<WeaponBase> weapons;
     int currentWeaponIndex = 0;
 
@@ -365,7 +366,7 @@ public class Weapon : MonoBehaviour
         if (bulletRb != null)
         {
             bulletRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            bulletRb.AddForce((direction.normalized * pistol.bulletSpeed) + (Vector3.Dot(rb.velocity, transform.forward) * transform.forward), ForceMode.VelocityChange);
+            bulletRb.AddForce((direction.normalized * bulletSpeed) + (Vector3.Dot(rb.velocity, transform.forward) * transform.forward), ForceMode.VelocityChange);
 
             StartCoroutine(BulletCollision(bullet, damage, stickToEnemy, crit));
             Debug.Log($"[Weapon] {(crit ? "Crit " : "")}Bullet fired: position {position}, direction {direction}, rotation {rotation}, damage {damage}, stick: {stickToEnemy}");
@@ -409,7 +410,7 @@ public class Weapon : MonoBehaviour
         }
         if (bullet != null)
         {
-            ParticleSystem sparksParticles = Instantiate(Manager.Instance.frictionSparks, bullet.transform.position, Quaternion.LookRotation(bulletRb.velocity)).GetComponent<ParticleSystem>();
+            ParticleSystem sparksParticles = Instantiate(Manager.Instance.friction, bullet.transform.position, Quaternion.LookRotation(bulletRb.velocity)).GetComponent<ParticleSystem>();
             sparksParticles.Play();
             Destroy(sparksParticles.gameObject, 1);
             Destroy(bullet);
@@ -495,11 +496,11 @@ public class Weapon : MonoBehaviour
         }
 
         isHookAiming = true;
-        activeHookLineRenderer = GetLineRenderer(currentHand == HandType.GreenInHand ? Color.green : Color.blue);
+        activeHookLineRenderer = Manager.Instance.GetLineRenderer(currentHand == HandType.GreenInHand ? Color.green : Color.blue);
         RaycastHit handHit;
         bool hitSomething = Physics.Raycast(handHolder.position, camera.forward, out handHit, Mathf.Infinity);
         Vector3 endPoint = hitSomething ? handHit.point : handHolder.position + camera.forward * 100f;
-        StartCoroutine(ShowRaycastLine(handHolder.position, endPoint, activeHookLineRenderer));
+        StartCoroutine(Manager.Instance.ShowLineRenderer(handHolder.position, endPoint, activeHookLineRenderer));
         activeHookLineRenderer.enabled = true;
         Debug.Log($"[Weapon] Hook aim started: {currentHand}");
     }
@@ -678,8 +679,8 @@ public class Weapon : MonoBehaviour
             case HandType.ColorfulInHand:
                 bool hitSomething = Physics.Raycast(rayOrigin, rayDirection, out handHit, Mathf.Infinity);
                 Vector3 endPoint = hitSomething ? handHit.point : rayOrigin + rayDirection * 100f;
-                LineRenderer colorfulLr = GetLineRenderer(new Color(Random.value, Random.value, Random.value));
-                StartCoroutine(ShowRaycastLine(rayOrigin, endPoint, colorfulLr));
+                LineRenderer colorfulLr = Manager.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
+                StartCoroutine(Manager.Instance.ShowLineRenderer(rayOrigin, endPoint, colorfulLr));
                 if (hitSomething)
                 {
                     Enemy enemy = handHit.collider.GetComponent<Enemy>();
@@ -764,38 +765,5 @@ public class Weapon : MonoBehaviour
             Manager.Instance.Flash();
             Manager.Instance.Sound(PickupSound);
         }
-    }
-
-    public LineRenderer GetLineRenderer(Color color)
-    {
-        GameObject lrObj = new GameObject("LineRenderer");
-        lrObj.transform.SetParent(transform);
-        LineRenderer newLr = lrObj.AddComponent<LineRenderer>();
-        newLr.startWidth = 0.25f;
-        newLr.endWidth = 0.25f;
-        newLr.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended"));
-        newLr.startColor = color;
-        newLr.endColor = color;
-        newLr.positionCount = 2;
-        newLr.enabled = true;
-        return newLr;
-    }
-
-    IEnumerator ShowRaycastLine(Vector3 start, Vector3 end, LineRenderer lr)
-    {
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, end);
-        float elapsed = 0f;
-        ParticleSystem sparksParticles = Instantiate(Manager.Instance.sparks, end, Quaternion.LookRotation(start - end)).GetComponent<ParticleSystem>();
-        sparksParticles.Play();
-        Destroy(sparksParticles.gameObject, 1);
-        while (elapsed < pistol.lineFadeTime)
-        {
-            elapsed += Time.deltaTime;
-            lr.startWidth /= ((elapsed + 1) / pistol.lineFadeTime) + 1;
-            lr.endWidth /= ((elapsed + 1) / pistol.lineFadeTime) + 1;
-            yield return null;
-        }
-        Debug.Log("[Weapon] LineRenderer faded out");
     }
 }

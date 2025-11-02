@@ -13,9 +13,9 @@ public class Slime : Enemy
     [SerializeField] float maxJumpInterval = 3f;
     [SerializeField] float groundCheckDistance = 0.1f;
     [SerializeField] float dashForce = 10f;
+    [SerializeField]  float mergeRange = 2f;
 
     Rigidbody rb;
-    Transform player;
     Material slimeMaterial;
     float nextJumpTime;
     float moveSpeed;
@@ -48,12 +48,6 @@ public class Slime : Enemy
         else
         {
             Debug.LogWarning("[Slime] Renderer not found.");
-        }
-
-        player = GameObject.FindWithTag("Player")?.transform;
-        if (player == null)
-        {
-            Debug.LogWarning("[Slime] Player not found.");
         }
 
         nextJumpTime = Time.time + Random.Range(minJumpInterval, maxJumpInterval);

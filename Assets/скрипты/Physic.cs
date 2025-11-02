@@ -7,7 +7,7 @@ public class Physic : MonoBehaviour
     AudioSource source;
     Rigidbody rb;
     ParticleSystem sparks;
-    ParticleSystem frictionSparks;
+    ParticleSystem friction;
     ParticleSystem stepSparks;
     ParticleSystem stepParticle;
     ParticleSystem landSparks;
@@ -54,18 +54,18 @@ public class Physic : MonoBehaviour
                         }
                         Manager.Instance.Sound(stepType, rb.velocity.magnitude / 10, source);
 
-                        if (frictionSparks == null)
+                        if (friction == null)
                         {
-                            frictionSparks = Instantiate(Manager.Instance.frictionSparks, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                            frictionSparks.transform.SetParent(transform, false);
-                            frictionSparks.name = "frictionSpark";
+                            friction = Instantiate(Manager.Instance.friction, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                            friction.transform.SetParent(transform, false);
+                            friction.name = "frictionSpark";
                         }
                         else
                         {
-                            frictionSparks.transform.position = hit.point;
-                            frictionSparks.transform.rotation = Quaternion.LookRotation(rb.velocity);
+                            friction.transform.position = hit.point;
+                            friction.transform.rotation = Quaternion.LookRotation(rb.velocity);
                         }
-                        frictionSparks.Play();
+                        friction.Play();
 
                         if (rb.velocity.magnitude > 10)
                         {
@@ -121,18 +121,18 @@ public class Physic : MonoBehaviour
                     {
                         if (hit.transform.tag != "Bullet")
                         {
-                            if (frictionSparks == null)
+                            if (friction == null)
                             {
-                                frictionSparks = Instantiate(Manager.Instance.frictionSparks, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                                frictionSparks.transform.SetParent(transform, false);
-                                frictionSparks.name = "frictionSparks";
+                                friction = Instantiate(Manager.Instance.friction, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                                friction.transform.SetParent(transform, false);
+                                friction.name = "friction";
                             }
                             else
                             {
-                                frictionSparks.transform.position = transform.position;
-                                frictionSparks.transform.rotation = Quaternion.LookRotation(rb.velocity);
+                                friction.transform.position = transform.position;
+                                friction.transform.rotation = Quaternion.LookRotation(rb.velocity);
                             }
-                            frictionSparks.Play();
+                            friction.Play();
                         }
                     }
 
@@ -158,12 +158,12 @@ public class Physic : MonoBehaviour
                 if (gameObject.tag == "Player")
                 {
                     trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 200f, 0.1f);
-                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 150f, 0.1f));
+                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 200f, 0.5f));
                 }
                 else
                 {
-                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 100f, 0.1f);
-                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 100f, 0.1f));
+                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 100f, 0.2f);
+                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 100f, 0.5f));
                 }
             }
             

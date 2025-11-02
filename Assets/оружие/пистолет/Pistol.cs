@@ -8,8 +8,6 @@ public class Pistol : WeaponBase
     [SerializeField] private float pistolDamage = 15f;
     [SerializeField] private float pistolAltChargeTimeBase = 1f;
     private float pistolAltChargeTimeBaseStart = 1f;
-    [SerializeField] public float bulletSpeed = 20f;
-    [SerializeField] public float lineFadeTime = 0.5f;
     private float pistolChargeTimer;
     private int pistolCharge;
     private bool isChargingPistol;
@@ -73,9 +71,9 @@ public class Pistol : WeaponBase
             }
             
             Vector3 endPoint = hitSomething ? weaponHit.point : currentOrigin + rayDirection * 100f;
-            LineRenderer pistolLr = Weapon.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
+            LineRenderer lr = Manager.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
 
-            Weapon.Instance.StartCoroutine(ShowRaycastLine(rayOrigin, endPoint, pistolLr));
+            StartCoroutine(Manager.Instance.ShowLineRenderer(rayOrigin, endPoint, lr));
             if (hitSomething)
             {
                 Enemy enemy = weaponHit.collider.GetComponent<Enemy>();
@@ -129,8 +127,8 @@ public class Pistol : WeaponBase
                 targetEnemy.Damage(crit ? (pistolDamage + pistolCharge - 1) * 2 : pistolDamage + pistolCharge, crit);
 
                 // Создаем визуальный эффект
-                LineRenderer lr = Weapon.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
-                Weapon.Instance.StartCoroutine(ShowRaycastLine(rayOrigin, targetEnemy.transform.position, lr));
+                LineRenderer lr = Manager.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
+                StartCoroutine(Manager.Instance.ShowLineRenderer(rayOrigin, targetEnemy.transform.position, lr));
 
                 if (pistolCharge == 1) Debug.Log($"[Pistol] Alt attack hit enemy: {targetEnemy.name}, damage: {pistolDamage * 2}, {pistolCharge}");
                 else Debug.Log($"[Pistol] Alt attack hit enemy: {targetEnemy.name}, damage: {pistolDamage}, {pistolCharge}");
@@ -176,26 +174,6 @@ public class Pistol : WeaponBase
         yield return new WaitForSeconds(0.3f);
     }
 
-
-    private IEnumerator ShowRaycastLine(Vector3 start, Vector3 end, LineRenderer lr)
-    {
-        lr.SetPosition(0, start);
-        lr.SetPosition(1, end);
-        float elapsed = 0f;
-        ParticleSystem sparksParticles = Instantiate(Manager.Instance.sparks, end, Quaternion.LookRotation(start - end)).GetComponent<ParticleSystem>();
-        sparksParticles.Play();
-        Destroy(sparksParticles.gameObject, 5);
-        while (elapsed < lineFadeTime)
-        {
-            elapsed += Time.deltaTime;
-            lr.startWidth /= ((elapsed + 1) / lineFadeTime) + 1;
-            lr.endWidth /= ((elapsed + 1) / lineFadeTime) + 1;
-            yield return null;
-        }
-        Destroy(lr.gameObject);
-        Debug.Log("[Weapon] LineRenderer faded out");
-    }
-
     public override void StartAltAttack()
     {
         if (altCooldownTimer > 0) return;
@@ -206,7 +184,7 @@ public class Pistol : WeaponBase
             weaponAnimator.SetBool("пистолет 2", true);
             Debug.Log("[Pistol] Charge animation 'пистолет 2' started");
         }
-        Weapon.Instance.StartCoroutine(AltAttackStartPistolCharge());
+        StartCoroutine(AltAttackStartPistolCharge());
     }
 
     private IEnumerator AltAttackStartPistolCharge()
@@ -240,7 +218,7 @@ public class Pistol : WeaponBase
         if (!isChargingPistol) return;
         isChargingPistol = false;
         altCooldownTimer = altCooldown;
-        Weapon.Instance.StartCoroutine(PistolAltAttack());
+        StartCoroutine(PistolAltAttack());
         pistolAltChargeTimeBase = pistolAltChargeTimeBaseStart;
     }
 

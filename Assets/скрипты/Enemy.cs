@@ -6,6 +6,7 @@ using DamageNumbersPro;
 using UnityEngine;
 using System.Linq;
 using TMPro;
+using Unity.VisualScripting;
 
 public abstract class Enemy : MonoBehaviour
 {
@@ -13,19 +14,11 @@ public abstract class Enemy : MonoBehaviour
     public string enemyName = "Enemy"; // Name for health bar display
     public float maxHealth = 100f;
     public float health = 100f;
-    public float mergeRange = 2f;
 
     [Header("Effects")]
-    [SerializeField] protected DamageNumber textPrefab;
-    [SerializeField] protected DamageNumber critPrefab;
-    protected DNP_PrefabSettings settings;
+    QuantityBhv quantity;
+    TextMeshProUGUI healthBarNameText; // For displaying enemy name
 
-    [SerializeField] protected Transform healthBarPrefab;
-    protected QuantityBhv quantity;
-    protected TextMeshProUGUI healthBarNameText; // For displaying enemy name
-
-    [SerializeField] protected GameObject BloodAttach;
-    [SerializeField] protected GameObject[] BloodFX;
     [SerializeField] protected Color[] bloodColors = new Color[] { Color.red }; // Array of possible blood colors
     protected List<GameObject> bloodInstances = new List<GameObject>();
 
@@ -40,13 +33,15 @@ public abstract class Enemy : MonoBehaviour
     protected SpringJoint springJoint;
     public float damageMultiplier = 1f;
     protected AudioSource source;
+    protected Transform player;
 
     protected virtual void Awake()
     {
         maxHealth = health;
+        player = GameObject.FindWithTag("Player").transform;
         dirLight = FindObjectsOfType<Light>().FirstOrDefault(l => l.type == LightType.Directional);
 
-        Transform healthBar = Instantiate(healthBarPrefab, transform);
+        Transform healthBar = Instantiate(Manager.Instance.healthBarPrefab, transform);
         quantity = healthBar.Find("Quantity").GetComponent<QuantityBhv>();
         quantity.MaximumAmount = maxHealth;
         quantity.Amount = health;
@@ -64,17 +59,16 @@ public abstract class Enemy : MonoBehaviour
 
     protected virtual void Start() => source = GetComponent<AudioSource>();
 
-    public virtual void Damage(float damage, bool crit = false, Vector3? target = null)
+    public virtual void Damage(float damage, bool crit = false, Vector3? target = null, Vector3? playerPos = null)
     {
-        Vector3 actualTarget = target ?? transform.position;
+        if (target == null) target = transform.position;
         health -= damage * damageMultiplier;
-        DNPSet(actualTarget, damage, crit);
         quantity.Amount = health;
-        for (int i = 0; i < Mathf.Min(damage / 25f, 10); i++) Blood(actualTarget);
+        for (int i = 0; i < Mathf.Min(damage / 25f, 10); i++) Blood(target.Value, playerPos);
 
         // Heal player based on distance
         Transform player = GameObject.FindWithTag("Player")?.transform;
-        if (player != null)
+        if (player != null && bloodColors.Length == 0)
         {
             float distance = Vector3.Distance(transform.position, player.position);
             float heal = Mathf.Clamp01(1f - (distance / 10)) * damage * 2;
@@ -88,34 +82,95 @@ public abstract class Enemy : MonoBehaviour
                 mergedEnemy.damageMultiplier -= 0.5f;
             }
 
-            Manager.Instance.Kill(damage, source);
-            for (int i = 0; i < 10; i++) Blood(actualTarget);
+            Manager.Instance.Kill(damage, target.Value, transform, crit, source);
+            for (int i = 0; i < 10; i++) Blood(target.Value, playerPos);
 
-            Rigidbody rb = GetComponent<Rigidbody>();
-            if (rb == null)
+            if (transform.childCount <= 2)
             {
-                rb = gameObject.AddComponent<Rigidbody>();
+                Rigidbody rb = GetComponent<Rigidbody>();
+                if (rb == null)
+                {
+                    rb = gameObject.AddComponent<Rigidbody>();
+                }
+                rb.AddForce(Random.insideUnitSphere * 100);
+                rb.AddTorque(Random.insideUnitSphere * 100);
             }
-            rb.AddForce(Random.insideUnitSphere * 10);
-            rb.AddTorque(Random.insideUnitSphere * 10);
+            else
+            {
+                foreach (Collider c in gameObject.GetComponents<Collider>()) Destroy(c);
+                foreach (Transform c in transform)
+                {
+                    if (c.name == "Health Bar(Clone)") continue;
+
+                    MeshCollider mc = c.AddComponent<MeshCollider>();
+                    mc.convex = true;
+                    Rigidbody rb = c.GetComponent<Rigidbody>();
+                    if (rb == null)
+                    {
+                        rb = c.AddComponent<Rigidbody>();
+                    }
+                    rb.AddForce(Random.insideUnitSphere * 100);
+                    rb.AddTorque(Random.insideUnitSphere * 100);
+                }
+            }
 
             gameObject.tag = "Untagged";
-            Component[] components = GetComponents<Component>();
-            foreach (Component comp in components)
+            foreach (Component c in GetComponents<Component>())
             {
-                if (comp is Enemy)
+                if (c is Enemy)
                 {
-                    Destroy(comp);
+                    Destroy(c);
                 }
             }
             if (shrinkDuration >= 0) Manager.Instance.Shrink(transform, timeBeforeShrink, shrinkDuration);
         }
         else
         {
-            Manager.Instance.Damage(damage, source);
+            Manager.Instance.Damage(damage, target.Value, transform, crit, source);
         }
 
         Debug.Log($"[{enemyName}] Took damage: {damage}, health left: {health}/{maxHealth}");
+    }
+
+    protected void Blood(Vector3 target, Vector3? playerPos = null)
+    {
+        if (bloodColors.Length == 0) return;
+        if (playerPos == null) playerPos = player.position;
+        Vector3 direction = playerPos.Value - target;
+        float angle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
+        angle += 90 + Random.Range(-45, 45);
+
+        if (effectIdx == Manager.Instance.BloodFX.Length) effectIdx = 0;
+        var instance = Instantiate(Manager.Instance.BloodFX[effectIdx], target, Quaternion.Euler(0, angle, 0));
+
+        // Apply random blood color
+        Color selectedColor = bloodColors.Length > 1 ? bloodColors[Random.Range(0, bloodColors.Length)] : bloodColors[0];
+        foreach (Renderer r in instance.GetComponentsInChildren<Renderer>())
+        {            
+            if (r.name == "Decal") r.GetComponent<Renderer>().material.SetColor("_TintColor", selectedColor);
+            else r.GetComponent<Renderer>().material.color = selectedColor;
+        }
+
+        effectIdx++;
+        var settings = instance.GetComponent<BFX_BloodSettings>();
+        if (dirLight != null) settings.LightIntensityMultiplier = dirLight.intensity;
+        Destroy(instance.gameObject, 30);
+
+        GameObject attachBloodInstance = Instantiate(Manager.Instance.BloodAttach, target, Quaternion.identity);
+        attachBloodInstance.transform.GetChild(0).GetComponent<Renderer>().material.SetColor("_TintColor", selectedColor);
+        bloodInstances.Add(attachBloodInstance);
+        if (bloodInstances.Count > 10)
+        {
+            Destroy(bloodInstances[0]);
+            bloodInstances.RemoveAt(0);
+        }
+
+        Transform bloodT = attachBloodInstance.transform;
+        bloodT.localRotation = Quaternion.identity;
+        bloodT.localScale = Vector3.one * Random.Range(0.75f, 1.2f);
+        bloodT.Rotate(90, 0, 0);
+        bloodT.parent = transform;
+        Destroy(attachBloodInstance.gameObject, 30);
     }
 
     public void ApplyEffect(EffectType effect)
@@ -151,54 +206,5 @@ public abstract class Enemy : MonoBehaviour
                     break;
             }
         }
-    }
-
-    protected void DNPSet(Vector3 target, float number, bool crit = false)
-    {
-        DamageNumber pref = crit ? critPrefab : textPrefab;
-        settings = pref.gameObject.GetComponent<DNP_PrefabSettings>();
-        if (pref.digitSettings.decimals == 0)
-        {
-            number = Mathf.Floor(number);
-        }
-        DamageNumber newDamageNumber = pref.Spawn(target, number);
-        settings.Apply(newDamageNumber);
-        newDamageNumber.enableFollowing = true;
-        newDamageNumber.followedTarget = transform;
-    }
-
-    protected void Blood(Vector3 target)
-    {
-        float angle = Random.Range(0f, 360f);
-        if (effectIdx == BloodFX.Length) effectIdx = 0;
-        var instance = Instantiate(BloodFX[effectIdx], target, Quaternion.Euler(0, angle, 0));
-
-        // Apply random blood color
-        Color selectedColor = bloodColors.Length > 1 ? bloodColors[Random.Range(0, bloodColors.Length)] : bloodColors[0];
-        var bloodRenderer = instance.GetComponentInChildren<Renderer>();
-        if (bloodRenderer != null)
-        {
-            bloodRenderer.material.color = selectedColor;
-        }
-
-        effectIdx++;
-        var settings = instance.GetComponent<BFX_BloodSettings>();
-        if (dirLight != null) settings.LightIntensityMultiplier = dirLight.intensity;
-        Destroy(instance.gameObject, 30);
-
-        GameObject attachBloodInstance = Instantiate(BloodAttach, target, Quaternion.identity);
-        bloodInstances.Add(attachBloodInstance);
-        if (bloodInstances.Count > 10)
-        {
-            Destroy(bloodInstances[0]);
-            bloodInstances.RemoveAt(0);
-        }
-
-        Transform bloodT = attachBloodInstance.transform;
-        bloodT.localRotation = Quaternion.identity;
-        bloodT.localScale = Vector3.one * Random.Range(0.75f, 1.2f);
-        bloodT.Rotate(90, 0, 0);
-        bloodT.parent = transform;
-        Destroy(attachBloodInstance.gameObject, 30);
     }
 }
