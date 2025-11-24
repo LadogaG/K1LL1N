@@ -11,7 +11,7 @@ public class Health : MonoBehaviour
     public static Health Instance { get; private set; }
     [SerializeField] Gradient healthGradient;
     [SerializeField] Gradient staminaGradient;
-
+    [SerializeField] PhysicMaterial rbMat;
     public GameObject head;
     public GameObject body;
     public GameObject rArm;
@@ -19,44 +19,44 @@ public class Health : MonoBehaviour
     public GameObject rLeg;
     public GameObject lLeg;
 
-    // Переменные для головы (основное здоровье)
+    [Header("head")]
     public float healthSum = 100f;
     public float health = 100f;
     float maxHealth = 100f;
     [SerializeField] Image healthBar;
     [SerializeField] TextMeshProUGUI healthText;
 
-    // Переменные для тела
+    [Header("body")]
     public float bodyHealth = 100f;
     float maxbodyHealth = 100f;
     [SerializeField] Image bodyHealthBar;
     [SerializeField] TextMeshProUGUI bodyHealthText;
 
-    // Переменные для правой руки
+    [Header("rArm")]
     public float rArmHealth = 100f;
     float maxrArmHealth = 100f;
     [SerializeField] Image rArmHealthBar;
     [SerializeField] TextMeshProUGUI rArmHealthText;
 
-    // Переменные для левой руки
+    [Header("lArm")]
     public float lArmHealth = 100f;
     float maxlArmHealth = 100f;
     [SerializeField] Image lArmHealthBar;
     [SerializeField] TextMeshProUGUI lArmHealthText;
 
-    // Переменные для правой ноги
+    [Header("rLeg")]
     public float rLegHealth = 100f;
     float maxrLegHealth = 100f;
     [SerializeField] Image rLegHealthBar;
     [SerializeField] TextMeshProUGUI rLegHealthText;
 
-    // Переменные для левой ноги
+    [Header("lLeg")]
     public float lLegHealth = 100f;
     float maxlLegHealth = 100f;
     [SerializeField] Image lLegHealthBar;
     [SerializeField] TextMeshProUGUI lLegHealthText;
 
-    // Переменные для энергии
+    [Header("stamina")]
     public float stamina = 100f;
     float maxStamina = 100f;
     [SerializeField] Image staminaBar;
@@ -120,8 +120,17 @@ public class Health : MonoBehaviour
         noiseAndGrain.intensityMultiplier = -healthSum / 25 + 4 * multiplier;
         motionBlur.blurAmount = -healthSum / 200 + 0.5f;
 
-        GetComponent<CapsuleCollider>().height = (rLegHealth + lLegHealth) / 100;
-        PhysicMaterial rbMat = GetComponent<Collider>().material;
+        CapsuleCollider cc = GetComponent<CapsuleCollider>();
+        cc.height = (rLegHealth + lLegHealth) / 200f;
+        Vector3 center = cc.center;
+        //center.y = ((rLegHealth + lLegHealth) / -200f) + 1.1f;
+        cc.center = center;
+
+        SphereCollider cc2 = GetComponent<SphereCollider>();
+        center = cc2.center;
+        center.y = ((rLegHealth + lLegHealth) / -200f) + 0.6f;
+        cc2.center = center;
+
         rbMat.dynamicFriction = (-rLegHealth + -lLegHealth + 200) / 100 + 1;
         rbMat.staticFriction = (-rLegHealth + -lLegHealth + 200) / 100 + 1;
 

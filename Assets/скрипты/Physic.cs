@@ -7,10 +7,11 @@ public class Physic : MonoBehaviour
     AudioSource source;
     Rigidbody rb;
     ParticleSystem sparks;
+    ParticleSystem explosion;
     ParticleSystem friction;
-    ParticleSystem stepSparks;
-    ParticleSystem stepParticle;
-    ParticleSystem landSparks;
+    ParticleSystem walk;
+    ParticleSystem step;
+    ParticleSystem land;
     string lastTag;
     bool isGrounded;
     TrailRenderer trailRenderer;
@@ -30,9 +31,9 @@ public class Physic : MonoBehaviour
         if (rb == null) rb = GetComponent<Rigidbody>();
         else
         {
-            float radius = transform.localScale.x / 2;  // Радиус капсулы
+            float radius = transform.localScale.x / 2;
             float rayDistance = new Vector3(transform.localScale.x, 0, transform.localScale.z).magnitude / 2f;
-            RaycastHit[] hits = new RaycastHit[10];  // Буфер
+            RaycastHit[] hits = new RaycastHit[10];
             int hitCount = Physics.CapsuleCastNonAlloc(transform.position, transform.position + rb.velocity.normalized * rayDistance, radius, rb.velocity.normalized, hits, rayDistance);
 
             if (rb.velocity.magnitude > 1)
@@ -40,6 +41,7 @@ public class Physic : MonoBehaviour
                 for (int i = 0; i < hitCount; i++)
                 {
                     var hit = hits[i];
+                    if (hit.collider.isTrigger) continue;
                     if (hit.transform != transform && hit.point != Vector3.zero && hit.transform.tag != "Bullet")
                     {
                         AudioClip stepType = Manager.Instance.hitSound;
@@ -58,7 +60,7 @@ public class Physic : MonoBehaviour
                         {
                             friction = Instantiate(Manager.Instance.friction, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
                             friction.transform.SetParent(transform, false);
-                            friction.name = "frictionSpark";
+                            friction.name = "Friction";
                         }
                         else
                         {
@@ -69,28 +71,55 @@ public class Physic : MonoBehaviour
 
                         if (rb.velocity.magnitude > 10)
                         {
-                            if (sparks == null)
+                            if ((gameObject.tag == "Player" && rb.velocity.magnitude > 25) || gameObject.tag != "Player")
+                            {                                
+                                if (sparks == null)
+                                {
+                                    sparks = Instantiate(Manager.Instance.sparks, hit.point, Quaternion.LookRotation(transform.position - hit.point)).GetComponent<ParticleSystem>();
+                                    sparks.transform.SetParent(transform, false);
+                                    sparks.name = "Spark";
+                                }
+                                else
+                                {
+                                    sparks.transform.position = hit.point;
+                                    sparks.transform.rotation = Quaternion.LookRotation(transform.position - hit.point);
+                                }
+                                sparks.Play();
+                                Manager.Instance.Sound(Manager.Instance.sparksSound, 1, source);
+                            }
+                        }
+                        else if (rb.velocity.magnitude > 100)
+                        {
+                            if (explosion == null)
                             {
-                                sparks = Instantiate(Manager.Instance.sparks, hit.point, Quaternion.LookRotation(transform.position - hit.point)).GetComponent<ParticleSystem>();
-                                sparks.transform.SetParent(transform, false);
-                                sparks.name = "spark";
+                                explosion = Instantiate(Manager.Instance.explosion, hit.point, Manager.Instance.explosion.transform.rotation).GetComponent<ParticleSystem>();
+                                explosion.transform.SetParent(transform, false);
+                                explosion.name = "Explosion";
                             }
                             else
                             {
-                                sparks.transform.position = hit.point;
-                                sparks.transform.rotation = Quaternion.LookRotation(transform.position - hit.point);
+                                explosion.transform.position = hit.point;
                             }
-                            sparks.Play();
-                            Manager.Instance.Sound(Manager.Instance.sparksSound, 1, source);
+                            explosion.Play();
+                            Collider[] targets = Physics.OverlapSphere(transform.position, 3);
+                            foreach (var target in targets)
+                            {
+                                Rigidbody rb = target.GetComponent<Rigidbody>();
+                                if (rb != null)
+                                {
+                                    rb.AddExplosionForce(10, transform.position, 3, 0, ForceMode.Impulse);
+                                }
+                            }
                         }
                     }
                 }
                 if (new Vector3(rb.velocity.x, 0, rb.velocity.z).magnitude > 1)
                 {
-                    RaycastHit[] footHits = Physics.RaycastAll(transform.position, Vector3.down, transform.localScale.y * 1.5f);
+                    RaycastHit[] footHits = Physics.RaycastAll(transform.position, Vector3.down, (transform.localScale.y * 1.5f) + 0.1f);
                     foreach (var hit in footHits)
                     {
-                        ParticleSystem stepType = Manager.Instance.stepSparks;
+                        if (hit.collider.isTrigger || hit.transform == transform) continue;
+                        ParticleSystem stepType = Manager.Instance.walk;
                         if (hit.transform.tag != "Untagged")
                         {
                             switch (hit.transform.tag)
@@ -100,32 +129,33 @@ public class Physic : MonoBehaviour
                             }
                         }
 
-                        if (stepSparks != null && lastTag != hit.transform.tag) Destroy(stepSparks.gameObject, 5);
-                        if ((lastTag != hit.transform.tag && transform.childCount < 20) || stepSparks == null)
+                        if (walk != null && lastTag != hit.transform.tag) Destroy(walk.gameObject, 5);
+                        if ((lastTag != hit.transform.tag && transform.childCount < 20) || walk == null)
                         {
-                            stepSparks = Instantiate(stepType, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                            stepSparks.transform.SetParent(transform, true);
-                            stepSparks.name = "stepSparks";
+                            walk = Instantiate(stepType, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                            walk.transform.SetParent(transform, true);
+                            walk.name = "Walk";
                         }
 
-                        stepSparks.transform.position = hit.point;
-                        stepSparks.Play();
+                        walk.transform.position = hit.point;
+                        walk.Play();
                         lastTag = hit.transform.tag;
                     }
                 }
 
                 if (transform.tag == "Bullet" && rb.velocity.magnitude > 5)
                 {
-                    Collider[] bulletHits = Physics.OverlapSphere(transform.position, 0.1f);
+                    Collider[] bulletHits = Physics.OverlapSphere(transform.position, 0.2f);
                     foreach (var hit in bulletHits)
                     {
+                        if (hit.isTrigger) continue;
                         if (hit.transform.tag != "Bullet")
                         {
                             if (friction == null)
                             {
                                 friction = Instantiate(Manager.Instance.friction, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
                                 friction.transform.SetParent(transform, false);
-                                friction.name = "friction";
+                                friction.name = "Friction";
                             }
                             else
                             {
@@ -136,14 +166,14 @@ public class Physic : MonoBehaviour
                         }
                     }
 
-                    if (stepSparks == null)
-                    {
-                        stepSparks = Instantiate(Manager.Instance.stepSparks, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                        stepSparks.transform.SetParent(transform, true);
-                        stepSparks.name = "stepSparks";
-                    }
-                    else stepSparks.transform.position = transform.position;
-                    stepSparks.Play();
+                    //if (walk == null)
+                    //{
+                    //    walk = Instantiate(Manager.Instance.walk, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                    //    walk.transform.SetParent(transform, true);
+                    //    walk.name = "walk";
+                    //}
+                    //else walk.transform.position = transform.position;
+                    //walk.Play();
                 }
 
                 if (trailRenderer == null)
@@ -166,20 +196,31 @@ public class Physic : MonoBehaviour
                     trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 100f, 0.5f));
                 }
             }
-            
+
             bool wasGrounded = isGrounded;
-            isGrounded = Physics.Raycast(transform.position, Vector3.down, out RaycastHit hitLand, transform.localScale.y * 1.5f);
-            if (isGrounded && !wasGrounded)
+            isGrounded = Physics.CapsuleCast(
+                transform.position + Vector3.up * (transform.localScale.y / 2 - transform.localScale.x / 2) + new Vector3(0, 0.1f, 0),
+                transform.position - Vector3.up * (transform.localScale.y / 2 - transform.localScale.x / 2) - new Vector3(0, 0.1f, 0),
+                transform.localScale.x / 2,
+                Vector3.down,
+                out RaycastHit landHit,
+                transform.localScale.y * 1.5f
+            );
+            if (isGrounded && landHit.collider.isTrigger)
             {
-                Manager.Instance.Sound(Manager.Instance.landSound, Mathf.Abs(rb.velocity.y/100), source);
-                if (landSparks == null)
+                isGrounded = false;
+            }
+            if (isGrounded && !wasGrounded && rb.velocity.y > 1)
+            {
+                Manager.Instance.Sound(Manager.Instance.landSound, Mathf.Abs(rb.velocity.y/500), source);
+                if (land == null)
                 {
-                    landSparks = Instantiate(Manager.Instance.landSparks, hitLand.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                    landSparks.transform.SetParent(transform, false);
-                    landSparks.name = "landSparks";
+                    land = Instantiate(Manager.Instance.land, landHit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                    land.transform.SetParent(transform, false);
+                    land.name = "Land";
                 }
-                else landSparks.transform.position = hitLand.point;
-                landSparks.Play();
+                else land.transform.position = landHit.point;
+                land.Play();
             }
         }
     }
@@ -188,8 +229,9 @@ public class Physic : MonoBehaviour
     {
         if (rb != null && gameObject.tag != "Bullet")
         {
-            if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, transform.localScale.y * 1.5f) && rb.velocity.magnitude > 1)
+            if (Physics.Raycast(transform.position, Vector3.down, out RaycastHit hit, (transform.localScale.y * 1.5f) + 0.1f) && rb.velocity.magnitude > 1)
             {
+                if (hit.collider.isTrigger || hit.transform == transform) return;
                 AudioClip stepType = Manager.Instance.hitSound;
                 if (hit.transform.tag != "Untagged")
                 {
@@ -201,20 +243,20 @@ public class Physic : MonoBehaviour
                     }
                 }
                 Manager.Instance.Sound(stepType, 1, source);
-                if (stepParticle == null)
+                if (step == null)
                 {
-                    stepParticle = Instantiate(Manager.Instance.stepParticle, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
-                    stepParticle.transform.SetParent(transform, true);
-                    stepParticle.name = "stepParticle";
+                    step = Instantiate(Manager.Instance.step, hit.point, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+                    step.transform.SetParent(transform, true);
+                    step.name = "Step";
                 }
-                stepParticle.transform.position = hit.point;
-                stepParticle.Play();
+                step.transform.position = hit.point;
+                step.Play();
             }
         }
     }
     
     void Fall()
     {
-        if (rb != null) if (Mathf.Abs(rb.velocity.y) > 25) Manager.Instance.Sound(Manager.Instance.fallSound, Mathf.Abs(rb.velocity.y/250), source);
+        if (rb != null) if (Mathf.Abs(rb.velocity.y) > 25 && !isGrounded) Manager.Instance.Sound(Manager.Instance.fallSound, Mathf.Abs(rb.velocity.y/250), source);
     }
 }

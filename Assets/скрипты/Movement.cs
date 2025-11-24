@@ -61,7 +61,7 @@ public class Movement : MonoBehaviour
         Vector3 input = new Vector3(horizontal, 0, vertical).normalized;
         Vector3 desiredVelocity = (transform.right * input.x + transform.forward * input.z) * speed;
         move = Vector3.ProjectOnPlane(desiredVelocity, transform.up);
-        if (new Vector3(rb.velocity.x, 0, rb.velocity.z).magnitude < 20)
+        if (new Vector3(rb.velocity.x, 0, rb.velocity.z).magnitude < 20 + (speed/5))
         {
             rb.AddForce(desiredVelocity - new Vector3(rb.velocity.x / 2, 0, rb.velocity.z / 2), ForceMode.VelocityChange);
         }
@@ -149,7 +149,19 @@ public class Movement : MonoBehaviour
     void CheckGrounded()
     {
         bool wasGrounded = isGrounded;
-        isGrounded = Physics.Raycast(transform.position, Vector3.down, transform.localScale.y * 1.5f);
+        RaycastHit hit;
+        isGrounded = Physics.CapsuleCast(
+            transform.position + Vector3.up * (transform.localScale.y / 2 - transform.localScale.x / 2),
+            transform.position - Vector3.up * (transform.localScale.y / 2 - transform.localScale.x / 2),
+            transform.localScale.x / 2,
+            Vector3.down,
+            out hit,
+            transform.localScale.y * 1.5f
+        );
+        if (isGrounded && hit.collider.isTrigger)
+        {
+            isGrounded = false;
+        }
         if (isGrounded && !wasGrounded)
         {
             Manager.Instance.Sound(landSound);
@@ -168,7 +180,7 @@ public class Movement : MonoBehaviour
 
     public void Dash()
     {
-        rb.AddForce(new Vector3(cam.forward.x, Mathf.Max(0, cam.forward.y), cam.forward.z) * dashForce, ForceMode.VelocityChange);
+        rb.AddForce(new Vector3(cam.forward.x, 0, cam.forward.z) * dashForce, ForceMode.VelocityChange);
         Manager.Instance.Sound(dashSound);
         Collider[] dashHits = Physics.OverlapSphere(transform.position, 2f);
         foreach (var dashHit in dashHits)
@@ -177,10 +189,8 @@ public class Movement : MonoBehaviour
             if (enemy != null)
             {
                 enemy.Damage(10);
-                Debug.Log($"[Weapon] Dash hit enemy: {dashHit.name}, damage: {20}");
             }
         }
-        Debug.Log("[Weapon] Dash performed");
     }
 
     public void PushBack(Vector3 dir, float pushBackForce)

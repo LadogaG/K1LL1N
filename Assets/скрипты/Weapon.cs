@@ -6,7 +6,6 @@ using TMPro;
 
 public class Weapon : MonoBehaviour
 {
-    public static Weapon Instance { get; private set; }
     [Header("Sound Settings")]
     [SerializeField] AudioClip equip;
     [SerializeField] AudioClip AmmoPickupSound;
@@ -15,25 +14,17 @@ public class Weapon : MonoBehaviour
     [Header("UI Settings")]
     [SerializeField] TextMeshProUGUI ammoText;
     [SerializeField] TextMeshProUGUI altAmmoText;
-    public bool randFont = true; // Список шрифтов для выбора
-    [SerializeField] TMP_FontAsset[] fonts; // Список шрифтов для выбора
+    public bool randFont = true;
+    [SerializeField] TMP_FontAsset[] fonts;
     [SerializeField] Transform canvases;
 
     [Header("Weapon Settings")]
-    [SerializeField] Transform holder; // Точка выстрела
+    [SerializeField] Transform holder;
     [SerializeField] Transform offset;
     [SerializeField] Transform weaponHolder;
-    [SerializeField] public GameObject bulletPrefab;
-    [SerializeField] public GameObject critPrefab;
-    [SerializeField] public GameObject detonateSparks;
     [SerializeField] Axe axe;
-    [SerializeField] Pistol pistol;
-    [SerializeField] Shotgun shotgun;
-    [SerializeField] RocketLauncher rocketLauncher;
-    [SerializeField] MachineGun machineGun;
     [SerializeField] int weaponsCount = 0;
     [SerializeField] Vector3[] weaponPoses;
-    [SerializeField] float bulletSpeed = 20f;
     List<WeaponBase> weapons;
     int currentWeaponIndex = 0;
 
@@ -90,25 +81,22 @@ public class Weapon : MonoBehaviour
     Quaternion lastCameraRotation;
     new Transform camera;
 
-    readonly List<GameObject> activeRockets = new List<GameObject>();
-
     void Awake()
     {
-        Instance = this;
         movement = GetComponent<Movement>();
         camera = Camera.main.transform;
         rb = GetComponent<Rigidbody>();
         health = GetComponent<Health>();
         weaponHolderRb = weaponHolder.GetComponent<Rigidbody>();
-        if (movement == null || rb == null || Camera.main == null || axe == null || pistol == null || shotgun == null || rocketLauncher == null || machineGun == null)
-        {
-            Debug.LogError("[Weapon] Missing required components!");
-        }
 
         weapons = weaponHolder.transform.Cast<Transform>()
-            .Where(child => child.childCount > 0)
-            .Select(child => child.GetChild(0).GetComponent<WeaponBase>())
-            .Where(component => component != null).ToList();
+            .Select(child => {
+                var component = child.GetComponent<WeaponBase>();
+                return component != null ? component : (child.childCount > 0 ? child.GetChild(0).GetComponent<WeaponBase>() : null);
+            })
+            .Where(component => component != null)
+            .ToList();
+
         SetHandActive(currentHandIndex);
 
         holderInitialLocalPosition = offset.localPosition;
@@ -124,9 +112,12 @@ public class Weapon : MonoBehaviour
     {
         if (Time.timeScale == 0) return;
         weapons = weaponHolder.transform.Cast<Transform>()
-            .Where(child => child.childCount > 0)
-            .Select(child => child.GetChild(0).GetComponent<WeaponBase>())
-            .Where(component => component != null).ToList();
+            .Select(child => {
+                var component = child.GetComponent<WeaponBase>();
+                return component != null ? component : (child.childCount > 0 ? child.GetChild(0).GetComponent<WeaponBase>() : null);
+            })
+            .Where(component => component != null)
+            .ToList();
 
         if (ammoText != null) ammoText.text = weapons[currentWeaponIndex].GetAmmoText();
         if (altAmmoText != null) altAmmoText.text = weapons[currentWeaponIndex].GetAltAmmoText();
@@ -237,7 +228,7 @@ public class Weapon : MonoBehaviour
             }
         }
 
-        if (weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") != weaponsCount)
+        if (weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") < weaponsCount)
         {
             GameObject newWeaponPos = new GameObject("copy");
             newWeaponPos.transform.SetParent(weapons[currentWeaponIndex].transform.parent, false);
@@ -251,11 +242,16 @@ public class Weapon : MonoBehaviour
                 posIndex -= weaponPoses.Length;
                 cycle = true;
             }
-            Debug.Log($"{posIndex},{weaponPoses.Length}");
             newWeaponPos.transform.localPosition += weaponPoses[posIndex] + (cycle ? Random.onUnitSphere/4f : Vector3.zero);
             GameObject newWeapon = Instantiate(weapons[currentWeaponIndex].gameObject, newWeaponPos.transform.position, newWeaponPos.transform.rotation);
             newWeapon.transform.SetParent(newWeaponPos.transform, false);
         }
+        while (weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") > weaponsCount)
+        {
+            GameObject c = weapons[currentWeaponIndex].transform.parent.GetChild(Random.Range(0, weapons[currentWeaponIndex].transform.parent.childCount)).gameObject;
+            if (c.name == "copy") Destroy(c);
+        }
+
         UpdateHolder();
     }
 
@@ -282,12 +278,6 @@ public class Weapon : MonoBehaviour
 
     void UpdateHolder()
     {
-        if (holder == null || Camera.main == null || rb == null || canvases == null)
-        {
-            Debug.LogError("[Weapon] holder, Main Camera, Rigidbody, or Canvases not found!");
-            return;
-        }
-
         Vector3 localVelocity = transform.InverseTransformDirection(rb.velocity);
         Vector3 targetOffset = new Vector3(
             Mathf.Clamp(-localVelocity.x * 0.1f, -holderMaxOffset, holderMaxOffset),
@@ -336,9 +326,9 @@ public class Weapon : MonoBehaviour
     {
         for (int i = 0; i < weapons.Count; i++)
         {
-            if (weapons[i].transform.parent != null) weapons[i].transform.parent.gameObject.SetActive(i == index);
+            if (weapons[i].transform.parent.name == weapons[i].name || weapons[i].name == "copy") if (weapons[i].transform.parent != null) weapons[i].transform.parent.gameObject.SetActive(i == index);
+            else if (weapons[i] != null) weapons[i].gameObject.SetActive(i == index);
         }
-        Debug.Log($"[Weapon] Weapon switched to index {index}");
     }
 
     void SetHandActive(int index)
@@ -356,163 +346,20 @@ public class Weapon : MonoBehaviour
         Debug.Log($"[Weapon] Hand switched to {currentHand}");
     }
 
-    public void FireBullet(Vector3 position, Vector3 rotation, Vector3 direction, float damage, bool stickToEnemy, bool crit = false)
-    {
-        Quaternion bulletRotation = Quaternion.Euler(rotation) * Quaternion.LookRotation(direction);
-        GameObject bullet = Instantiate(crit ? critPrefab : bulletPrefab, position, bulletRotation);
-        bullet.name = "пуля";
-
-        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
-        if (bulletRb != null)
-        {
-            bulletRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            bulletRb.AddForce((direction.normalized * bulletSpeed) + (Vector3.Dot(rb.velocity, transform.forward) * transform.forward), ForceMode.VelocityChange);
-
-            StartCoroutine(BulletCollision(bullet, damage, stickToEnemy, crit));
-            Debug.Log($"[Weapon] {(crit ? "Crit " : "")}Bullet fired: position {position}, direction {direction}, rotation {rotation}, damage {damage}, stick: {stickToEnemy}");
-        }
-        else
-        {
-            Debug.LogError("[Weapon] Bullet Rigidbody missing!");
-            Destroy(bullet);
-        }
-    }
-
-    IEnumerator BulletCollision(GameObject bullet, float damage, bool stickToEnemy, bool crit = false)
-    {
-        float lifetime = 10f;
-        float timer = 0f;
-        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
-        while (timer < lifetime && bullet != null)
-        {
-            timer += Time.deltaTime;
-            Collider[] hits = Physics.OverlapSphere(bullet.transform.position, 0.1f);
-            foreach (var hit in hits)
-            {
-                Enemy enemy = hit.GetComponent<Enemy>();
-                if (enemy != null)
-                {
-                    enemy.Damage(damage, crit, bullet.transform.position);
-                    Debug.Log($"[Weapon] Bullet hit enemy: {hit.name}, damage: {damage}");
-                    if (stickToEnemy)
-                    {
-                        bullet.transform.SetParent(hit.transform);
-                        Destroy(bulletRb);
-                    }
-                    else
-                    {
-                        Destroy(bullet);
-                    }
-                    yield break;
-                }
-            }
-            yield return null;
-        }
-        if (bullet != null)
-        {
-            ParticleSystem sparksParticles = Instantiate(Manager.Instance.friction, bullet.transform.position, Quaternion.LookRotation(bulletRb.velocity)).GetComponent<ParticleSystem>();
-            sparksParticles.Play();
-            Destroy(sparksParticles.gameObject, 1);
-            Destroy(bullet);
-            Debug.Log("[Weapon] Bullet destroyed due to lifetime expiration");
-        }
-    }
-
-    public void FireSingleRocket(Vector3 direction, float spread, Vector3 position)
-    {
-        GameObject rocket = Instantiate(rocketLauncher.rocketPrefab, position, Quaternion.LookRotation(direction + Random.insideUnitSphere * spread));
-        Rigidbody rocketRb = rocket.GetComponent<Rigidbody>();
-        if (rocketRb != null)
-        {
-            rocketRb.useGravity = false;
-            rocketRb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-            rocketRb.AddForce((direction * rocketLauncher.rocketSpeed) + (Vector3.Dot(rb.velocity, transform.forward) * transform.forward), ForceMode.VelocityChange);
-            Physics.IgnoreCollision(rocketRb.GetComponent<Collider>(), GetComponent<Collider>());
-            activeRockets.Add(rocket);
-            StartCoroutine(RocketCollision(rocket));
-            Debug.Log($"[Weapon] Single rocket fired: position {position}, direction {direction}, spread {spread}, speed {rocketLauncher.rocketSpeed}");
-        }
-        else
-        {
-            Debug.LogError("[Weapon] Rocket Rigidbody missing!");
-            Destroy(rocket);
-        }
-    }
-
-    IEnumerator RocketCollision(GameObject rocket)
-    {
-        while (rocket != null)
-        {
-            Collider[] hits = Physics.OverlapSphere(rocket.transform.position, 0.5f);
-            foreach (var hit in hits)
-            {
-                if (hit.gameObject != null && hit.tag != "Player" && hit.tag != "Rocket" && hit.tag != "Bullet")
-                {
-                    DetonateRocket(rocket);
-                    Debug.Log(hit.gameObject.name);
-                    yield break;
-                }
-            }
-            yield return null;
-        }
-    }
-
-    void DetonateRocket(GameObject rocket)
-    {
-        if (rocket == null) return;
-        ParticleSystem detonate = Instantiate(detonateSparks, rocket.transform.position, detonateSparks.transform.rotation).GetComponent<ParticleSystem>();
-        detonate.Play();
-        Destroy(detonate.gameObject, 5);
-
-        Collider[] hits = Physics.OverlapSphere(rocket.transform.position, rocketLauncher.rocketExplosionRadius);
-        foreach (var hit in hits)
-        {
-            Enemy enemy = hit.GetComponent<Enemy>();
-            if (enemy != null)
-            {
-                enemy.Damage(rocketLauncher.rocketDamage, false, rocket.transform.position);
-                Debug.Log($"[Weapon] Rocket explosion hit enemy: {hit.name}, damage: {rocketLauncher.rocketDamage}");
-            }
-
-            Rigidbody rb = hit.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                rb.AddExplosionForce(50, rocket.transform.position, rocketLauncher.rocketExplosionRadius, 0f, ForceMode.Impulse);
-                Debug.Log($"[Weapon] Rocket explosion knocked back object: {hit.name}");
-            }
-        }
-        activeRockets.Remove(rocket);
-        Destroy(rocket);
-
-        Debug.Log($"[Weapon] Rocket exploded at {rocket.transform.position}, radius: {rocketLauncher.rocketExplosionRadius}");
-    }
-
     void StartHookAim()
     {
-        if (Camera.main == null || holder == null)
-        {
-            Debug.LogError("[Weapon] Main Camera or holder not found!");
-            return;
-        }
-
         isHookAiming = true;
         activeHookLineRenderer = Manager.Instance.GetLineRenderer(currentHand == HandType.GreenInHand ? Color.green : Color.blue);
         RaycastHit handHit;
         bool hitSomething = Physics.Raycast(handHolder.position, camera.forward, out handHit, Mathf.Infinity);
         Vector3 endPoint = hitSomething ? handHit.point : handHolder.position + camera.forward * 100f;
-        StartCoroutine(Manager.Instance.ShowLineRenderer(handHolder.position, endPoint, activeHookLineRenderer));
+        Manager.Instance.ShowLineRenderer(handHolder.position, endPoint, activeHookLineRenderer, Manager.Instance.sparks);
         activeHookLineRenderer.enabled = true;
         Debug.Log($"[Weapon] Hook aim started: {currentHand}");
     }
 
     void UpdateHookAim()
     {
-        if (Camera.main == null || holder == null || !isHookAiming)
-        {
-            Debug.LogWarning("[Weapon] Hook aim aborted: missing components or not aiming");
-            return;
-        }
-
         Vector3 rayOrigin = holder.position;
         Vector3 rayDirection = camera.forward;
         RaycastHit handHit;
@@ -551,7 +398,6 @@ public class Weapon : MonoBehaviour
     {
         if (!isHookAiming || activeHookLineRenderer == null)
         {
-            Debug.LogWarning("[Weapon] Hook release aborted: not aiming or no LineRenderer");
             return;
         }
 
@@ -583,12 +429,6 @@ public class Weapon : MonoBehaviour
 
     void UseHand()
     {
-        if (Camera.main == null || holder == null)
-        {
-            Debug.LogError("[Weapon] Main Camera or holder not found!");
-            return;
-        }
-
         Vector3 rayOrigin = handHolder.position;
         Vector3 rayDirection = camera.forward;
         RaycastHit handHit;
@@ -628,12 +468,6 @@ public class Weapon : MonoBehaviour
 
     void HoldHand()
     {
-        if (Camera.main == null || holder == null)
-        {
-            Debug.LogError("[Weapon] Main Camera or holder not found!");
-            return;
-        }
-
         Vector3 rayOrigin = handHolder.position;
         Vector3 rayDirection = camera.forward;
         RaycastHit handHit;
@@ -680,13 +514,13 @@ public class Weapon : MonoBehaviour
                 bool hitSomething = Physics.Raycast(rayOrigin, rayDirection, out handHit, Mathf.Infinity);
                 Vector3 endPoint = hitSomething ? handHit.point : rayOrigin + rayDirection * 100f;
                 LineRenderer colorfulLr = Manager.Instance.GetLineRenderer(new Color(Random.value, Random.value, Random.value));
-                StartCoroutine(Manager.Instance.ShowLineRenderer(rayOrigin, endPoint, colorfulLr));
+                Manager.Instance.ShowLineRenderer(rayOrigin, endPoint, colorfulLr, Manager.Instance.sparks);
                 if (hitSomething)
                 {
                     Enemy enemy = handHit.collider.GetComponent<Enemy>();
                     if (enemy != null)
                     {
-                        enemy.Damage(machineGun.machineGunDamage * Time.deltaTime);
+                        enemy.Damage(10 * Time.deltaTime);
                         Debug.Log($"[Weapon] Colorful hand dealing damage to {handHit.collider.name}");
                     }
                 }
@@ -697,16 +531,11 @@ public class Weapon : MonoBehaviour
 
     void ReleaseHand()
     {
-        // Ничего не делаем для других рук
+        
     }
 
     void ShootOil()
     {
-        if (Camera.main == null || holder == null)
-        {
-            Debug.LogError("[Weapon] Main Camera or holder not found!");
-            return;
-        }
         Vector3 rayOrigin = handHolder.position;
         Vector3 rayDirection = camera.forward;
         RaycastHit oilHit;
@@ -723,11 +552,6 @@ public class Weapon : MonoBehaviour
 
     void UseFire()
     {
-        if (Camera.main == null || holder == null)
-        {
-            Debug.LogError("[Weapon] Main Camera or holder not found!");
-            return;
-        }
         Vector3 rayOrigin = handHolder.position;
         Vector3 rayDirection = camera.forward;
         RaycastHit fireHit;
