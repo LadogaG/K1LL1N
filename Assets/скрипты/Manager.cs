@@ -67,6 +67,7 @@ public class Manager : MonoBehaviour
     [Header("Particles Settings")]
     public ParticleSystem sparks;
     public ParticleSystem small;
+    public ParticleSystem smallExp;
     public ParticleSystem explosion;
     public ParticleSystem friction;
     public ParticleSystem land;
@@ -85,6 +86,7 @@ public class Manager : MonoBehaviour
     public AudioClip landSound;
     public AudioClip hitSound;
     public AudioClip grassSound;
+    public AudioClip glassSound;
     public AudioClip metalSound;
     public AudioClip sparksSound;
     AudioSource source;
@@ -189,7 +191,7 @@ public class Manager : MonoBehaviour
         GameObject p = Instantiate(projectile, position, rotation);
         if (p.GetComponent<Rigidbody>() == null) p.AddComponent<Rigidbody>();
         Projectile pc = p.GetComponent<Projectile>();
-        if (pc == null) pc = p.AddComponent<Bullet>();
+        if (pc == null) pc = p.AddComponent<Throwable>();
         if (!pc.enabled) pc.enabled = true;
         p.GetComponent<Collider>().isTrigger = false;
         pc.Fire(isPlayer, direction, speed, spread, null, isCrit);

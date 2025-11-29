@@ -1,7 +1,7 @@
+using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 using TMPro;
-using System.Collections;
-using System.Collections.Generic;
 
 public class RocketLauncher : WeaponBase
 {
@@ -18,7 +18,6 @@ public class RocketLauncher : WeaponBase
     bool isChargingRockets;
     float ammoRegenRateBase;
     float rocketChargeTimeBase;
-    readonly List<GameObject> activeRockets = new List<GameObject>();
 
     [SerializeField] AudioClip primary;
     [SerializeField] AudioClip alt;

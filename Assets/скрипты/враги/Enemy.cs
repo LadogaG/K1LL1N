@@ -1,12 +1,12 @@
 using System.Collections.Generic;
 using Minimalist.Bar.Quantity;
+using Unity.VisualScripting;
 using DamageNumbersPro.Demo;
 using System.Collections;
 using DamageNumbersPro;
 using UnityEngine;
 using System.Linq;
 using TMPro;
-using Unity.VisualScripting;
 
 public abstract class Enemy : MonoBehaviour
 {

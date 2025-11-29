@@ -26,7 +26,7 @@ public class Weapon : MonoBehaviour
     [SerializeField] int weaponsCount = 0;
     [SerializeField] Vector3[] weaponPoses;
     List<WeaponBase> weapons;
-    int currentWeaponIndex = 0;
+    int currentIndex = 0;
 
     [Header("Weapon Holder Animation")]
     [SerializeField] Animator weaponHolderAnimator;
@@ -95,6 +95,7 @@ public class Weapon : MonoBehaviour
                 return component != null ? component : (child.childCount > 0 ? child.GetChild(0).GetComponent<WeaponBase>() : null);
             })
             .Where(component => component != null)
+            .Where(component => component.gameObject.name != "copy")
             .ToList();
 
         SetHandActive(currentHandIndex);
@@ -117,36 +118,33 @@ public class Weapon : MonoBehaviour
                 return component != null ? component : (child.childCount > 0 ? child.GetChild(0).GetComponent<WeaponBase>() : null);
             })
             .Where(component => component != null)
+            .Where(component => component.gameObject.name != "copy")
             .ToList();
 
-        if (ammoText != null) ammoText.text = weapons[currentWeaponIndex].GetAmmoText();
-        if (altAmmoText != null) altAmmoText.text = weapons[currentWeaponIndex].GetAltAmmoText();
+        if (ammoText != null) ammoText.text = weapons[currentIndex].GetAmmoText();
+        if (altAmmoText != null) altAmmoText.text = weapons[currentIndex].GetAltAmmoText();
 
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         if (scroll != 0)
         {
-            ChangeStart();
             if (scroll > 0f)
             {
-                currentWeaponIndex = (currentWeaponIndex + 1) % weapons.Count;
-                SetWeaponActive(currentWeaponIndex);
+                currentIndex = (currentIndex + 1) % weapons.Count;
+                SetWeaponActive(currentIndex);
             }
             else if (scroll < 0f)
             {
-                currentWeaponIndex = (currentWeaponIndex - 1 + weapons.Count) % weapons.Count;
-                SetWeaponActive(currentWeaponIndex);
+                currentIndex = (currentIndex - 1 + weapons.Count) % weapons.Count;
+                SetWeaponActive(currentIndex);
             }
-            ChangeLate();
         }
 
         for (int i = 0; i <= 9; i++)
         {
             if (Input.GetKeyDown(KeyCode.Alpha0 + i + 1))
             {
-                ChangeStart();
-                currentWeaponIndex = i % weapons.Count;
-                SetWeaponActive(currentWeaponIndex);
-                ChangeLate();
+                currentIndex = i % weapons.Count;
+                SetWeaponActive(currentIndex);
             }
         }
 
@@ -228,52 +226,86 @@ public class Weapon : MonoBehaviour
             }
         }
 
-        if (weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") < weaponsCount)
-        {
-            GameObject newWeaponPos = new GameObject("copy");
-            newWeaponPos.transform.SetParent(weapons[currentWeaponIndex].transform.parent, false);
-            newWeaponPos.transform.position = weapons[currentWeaponIndex].transform.position;
-            newWeaponPos.transform.rotation = weapons[currentWeaponIndex].transform.rotation;
-            newWeaponPos.transform.localPosition = Vector3.zero;
-            int posIndex = weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") - 1;
-            bool cycle = false;
-            while (posIndex > weaponPoses.Length - 1)
+        if (weapons[currentIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") < weaponsCount)
+        {            
+            foreach (var w in weapons)
             {
-                posIndex -= weaponPoses.Length;
-                cycle = true;
+                while (w.transform.parent.Cast<Transform>().Count(t => t.name == "copy") < weaponsCount)
+                {
+                    w.gameObject.SetActive(true);
+                    if (w.transform.parent.name == w.name)
+                    {
+                        GameObject newWeaponPos = new GameObject("copy");
+                        newWeaponPos.transform.SetParent(w.transform.parent, false);
+                        newWeaponPos.transform.position = w.transform.position;
+                        newWeaponPos.transform.rotation = w.transform.rotation;
+                        newWeaponPos.transform.localPosition = Vector3.zero;
+                        int posIndex = w.transform.parent.Cast<Transform>().Count(t => t.name == "copy") - 1;
+                        bool cycle = false;
+                        while (posIndex > weaponPoses.Length - 1)
+                        {
+                            posIndex -= weaponPoses.Length;
+                            cycle = true;
+                        }
+                        newWeaponPos.transform.localPosition += weaponPoses[posIndex] + (cycle ? Random.onUnitSphere/4f : Vector3.zero);
+                        GameObject newWeapon = Instantiate(w.gameObject, newWeaponPos.transform.position, newWeaponPos.transform.rotation);
+                        newWeapon.transform.SetParent(newWeaponPos.transform, false);
+                    }
+                    else if (w.name != "copy")
+                    {
+                        Transform newWeapon = new GameObject(w.name).transform;
+                        newWeapon.SetParent(weaponHolder, false);
+                        w.transform.parent = newWeapon;
+                    }
+                    SetWeaponActive(currentIndex);
+                }
+                if (w.transform.parent.Cast<Transform>().Count(t => t.name == "copy") > weaponsCount)
+                {
+                    GameObject[] cs = w.transform.parent.GetComponentsInChildren<Transform>()
+                        .Where(child => child.name.Contains("copy"))
+                        .Select(child => child.gameObject)
+                        .ToArray();
+                        
+                    Destroy(cs[Random.Range(0, cs.Length)]);
+                }
             }
-            newWeaponPos.transform.localPosition += weaponPoses[posIndex] + (cycle ? Random.onUnitSphere/4f : Vector3.zero);
-            GameObject newWeapon = Instantiate(weapons[currentWeaponIndex].gameObject, newWeaponPos.transform.position, newWeaponPos.transform.rotation);
-            newWeapon.transform.SetParent(newWeaponPos.transform, false);
-        }
-        while (weapons[currentWeaponIndex].transform.parent.Cast<Transform>().Count(t => t.name == "copy") > weaponsCount)
-        {
-            GameObject c = weapons[currentWeaponIndex].transform.parent.GetChild(Random.Range(0, weapons[currentWeaponIndex].transform.parent.childCount)).gameObject;
-            if (c.name == "copy") Destroy(c);
         }
 
         UpdateHolder();
     }
 
-    void ChangeStart()
+    void SetWeaponActive(int index)
     {
-        for (int i = 0; i < weapons[currentWeaponIndex].particles.Length; i++)
+        for (int i = 0; i < weapons[currentIndex].particles.Length; i++)
         {
-            weapons[currentWeaponIndex].particles[i].Stop();
+            weapons[currentIndex].particles[i].Stop();
         }
-    }
 
-    void ChangeLate()
-    {
+        for (int i = 0; i < weapons.Count; i++)
+        {
+            if (weapons[i].transform.parent.name == weapons[i].name || weapons[i].name == "copy")
+            {
+                if (weapons[i].transform.parent != null)
+                {
+                    weapons[i].transform.parent.gameObject.SetActive(i == index);
+                    foreach (Transform c in weapons[i].transform.parent)
+                    {
+                        c.gameObject.SetActive(true);
+                    }
+                }
+            }
+            else if (weapons[i] != null) weapons[i].gameObject.SetActive(i == index);
+        }
+
         TMP_FontAsset randomFont = randFont ? fonts[Random.Range(0, fonts.Length)] : fonts[0];
         ammoText.font = randomFont;
         altAmmoText.font = randomFont;
 
         Manager.Instance.Sound(equip);
         weaponHolderAnimator.SetTrigger("смена");
-        weapons[currentWeaponIndex].cooldownTimer = 0;
-        weapons[currentWeaponIndex].altCooldownTimer = 0;
-        if (weapons[currentWeaponIndex].ammo <= 0) weapons[currentWeaponIndex].ammo += 1;
+        weapons[currentIndex].cooldownTimer = 0;
+        weapons[currentIndex].altCooldownTimer = 0;
+        if (weapons[currentIndex].ammo <= 0) weapons[currentIndex].ammo += 1;
     }
 
     void UpdateHolder()
@@ -319,15 +351,6 @@ public class Weapon : MonoBehaviour
             weaponHolder.localPosition = weaponHolderInitialLocalPosition;
             weaponHolder.localRotation = weaponHolderInitialLocalRotation;
             weaponHolderAnimator.enabled = true;
-        }
-    }
-
-    void SetWeaponActive(int index)
-    {
-        for (int i = 0; i < weapons.Count; i++)
-        {
-            if (weapons[i].transform.parent.name == weapons[i].name || weapons[i].name == "copy") if (weapons[i].transform.parent != null) weapons[i].transform.parent.gameObject.SetActive(i == index);
-            else if (weapons[i] != null) weapons[i].gameObject.SetActive(i == index);
         }
     }
 

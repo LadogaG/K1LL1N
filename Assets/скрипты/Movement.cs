@@ -142,7 +142,7 @@ public class Movement : MonoBehaviour
         float mouseY = Input.GetAxis("Mouse Y") * mouseSensitivity;
 
         transform.Rotate(0, mouseX, 0);
-        camPitch = Mathf.Clamp(camPitch - mouseY, -150f, 150f);
+        camPitch = Mathf.Clamp(camPitch - mouseY, -180f, 180f);
         cam.localRotation = Quaternion.Euler(camPitch, 0, 0);
     }
 
@@ -180,6 +180,7 @@ public class Movement : MonoBehaviour
 
     public void Dash()
     {
+        rb.velocity = Vector3.zero;
         rb.AddForce(new Vector3(cam.forward.x, 0, cam.forward.z) * dashForce, ForceMode.VelocityChange);
         Manager.Instance.Sound(dashSound);
         Collider[] dashHits = Physics.OverlapSphere(transform.position, 2f);

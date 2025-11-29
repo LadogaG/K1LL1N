@@ -2,21 +2,11 @@ using System.Collections.Generic;
 using System.Collections;
 using UnityEngine;
 
-public class Rocket : Projectile
+public class Throwable : Projectile
 {
-    [SerializeField] ParticleSystem particle;
-    public bool rocketHit = true;
-
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
-
-        if (player != null)
-        {
-            particle.Play();
-            rb.useGravity = false;
-        }
-        else particle.Stop();
     }
 
     public override void Fire(bool? isPlayer, Vector3 direction, float speed = 15, float spread = 0, List<EffectType> effectTypes = null, bool c = false)
@@ -27,13 +17,6 @@ public class Rocket : Projectile
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.AddForce((direction * speed) + (Vector3.Dot(Manager.Instance.rb.velocity, transform.forward) * transform.forward), ForceMode.VelocityChange);
         Physics.IgnoreCollision(rb.GetComponent<Collider>(), GetComponent<Collider>());
-
-        if (player != null)
-        {
-            particle.Play();
-            rb.useGravity = false;
-        }
-        else particle.Stop();
     }
 
     void Update()
@@ -42,11 +25,6 @@ public class Rocket : Projectile
         foreach (var hit in hits)
         {
             if (hit.gameObject == gameObject || hit.isTrigger) return;
-            if (player == null && (hit.GetComponent<Rigidbody>() != null || hit.tag == "Enemy") && hit.gameObject != Manager.Instance.player)
-            {
-                if (hit.tag == "Rocket" && rocketHit) Explode(3);
-                else Explode(2);
-            }
             if (player != null)
             {
                 if (hit.tag == "Player" && player.Value) return;
@@ -55,18 +33,18 @@ public class Rocket : Projectile
         }
     }
 
-    public void Explode(int multiplier = 1)
+    public void Explode()
     {
         Destroy(rb);
 
-        Collider[] targets = Physics.OverlapSphere(gameObject.transform.position, 3 * multiplier);
+        Collider[] targets = Physics.OverlapSphere(gameObject.transform.position, 1);
         foreach (var target in targets)
         {
-            if (player == null && target.tag == "Player") Health.Instance.Damage(transform.position, 50 * multiplier);
-            if (player == null && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(50 * multiplier, false, gameObject.transform.position);
-            if (player != null && !player.Value && target.tag == "Player") Health.Instance.Damage(transform.position, 50 * multiplier);
-            if (player != null && !player.Value && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(5 * multiplier, false, gameObject.transform.position);
-            if (player != null && player.Value && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(25 * multiplier, false, gameObject.transform.position);
+            if (player == null && target.tag == "Player") Health.Instance.Damage(transform.position, 25);
+            if (player == null && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(25, false, gameObject.transform.position);
+            if (player != null && !player.Value && target.tag == "Player") Health.Instance.Damage(transform.position, 25);
+            if (player != null && !player.Value && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(5, false, gameObject.transform.position);
+            if (player != null && player.Value && target.tag == "Enemy") target.GetComponent<Enemy>().Damage(25, false, gameObject.transform.position);
 
             if (target.tag == "Bullet")
             {
@@ -90,18 +68,26 @@ public class Rocket : Projectile
             Rigidbody trb = target.GetComponent<Rigidbody>();
             if (trb != null)
             {
-                trb.AddExplosionForce(50 * multiplier, gameObject.transform.position, 3 * multiplier, 0f, ForceMode.Impulse);
+                trb.AddExplosionForce(25, gameObject.transform.position, 1, 0f, ForceMode.Impulse);
             }
         }
 
-        for (int i = 0; i <= multiplier*2; i++)
-        {            
-            float f = multiplier - 1;
-            Vector3 randomVector = new Vector3(Random.Range(-f, f), Random.Range(-f, f), Random.Range(-f, f));
-            ParticleSystem detonate = Instantiate(Manager.Instance.explosion, gameObject.transform.position + randomVector, Manager.Instance.explosion.transform.rotation).GetComponent<ParticleSystem>();
-            detonate.Play();
-            Destroy(detonate.gameObject, 5);
+        ParticleSystem detonate = Instantiate(Manager.Instance.smallExp, transform.position, Quaternion.LookRotation(rb.velocity)).GetComponent<ParticleSystem>();
+        detonate.Play();
+        Destroy(detonate.gameObject, 5);
+
+        AudioClip stepType = Manager.Instance.hitSound;
+        if (transform.tag != "Untagged")
+        {
+            switch (transform.tag)
+            {
+                case "Enemy": stepType = Manager.Instance.damageSound; break;
+                case "Grass": stepType = Manager.Instance.grassSound; break;
+                case "Glass": stepType = Manager.Instance.glassSound; break;
+                case "Metal": stepType = Manager.Instance.metalSound; break;
+            }
         }
+        Manager.Instance.Sound(stepType);
 
         Destroy(gameObject);
     }

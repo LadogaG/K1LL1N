@@ -1,5 +1,5 @@
-using System.Collections;
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 public class Physic : MonoBehaviour
@@ -31,10 +31,9 @@ public class Physic : MonoBehaviour
         if (rb == null) rb = GetComponent<Rigidbody>();
         else
         {
-            float radius = transform.localScale.x / 2;
-            float rayDistance = new Vector3(transform.localScale.x, 0, transform.localScale.z).magnitude / 2f;
+            float radius = new Vector3(transform.localScale.x, 0, transform.localScale.z).magnitude / 2;
             RaycastHit[] hits = new RaycastHit[10];
-            int hitCount = Physics.CapsuleCastNonAlloc(transform.position, transform.position + rb.velocity.normalized * rayDistance, radius, rb.velocity.normalized, hits, rayDistance);
+            int hitCount = Physics.CapsuleCastNonAlloc(transform.position, transform.position + rb.velocity.normalized * radius, radius, rb.velocity.normalized, hits, radius);
 
             if (rb.velocity.magnitude > 1)
             {
@@ -51,6 +50,7 @@ public class Physic : MonoBehaviour
                             {
                                 case "Enemy": stepType = Manager.Instance.damageSound; break;
                                 case "Grass": stepType = Manager.Instance.grassSound; break;
+                                case "Glass": stepType = Manager.Instance.glassSound; break;
                                 case "Metal": stepType = Manager.Instance.metalSound; break;
                             }
                         }
@@ -125,6 +125,7 @@ public class Physic : MonoBehaviour
                             switch (hit.transform.tag)
                             {
                                 case "Grass": stepType = Manager.Instance.grassSparks; break;
+                                case "Glass": stepType = Manager.Instance.metalSparks; break;
                                 case "Metal": stepType = Manager.Instance.metalSparks; break;
                             }
                         }
@@ -180,7 +181,6 @@ public class Physic : MonoBehaviour
                 {
                     trailRenderer = gameObject.AddComponent<TrailRenderer>();
                     trailRenderer.material = new Material(Shader.Find("Legacy Shaders/Particles/Alpha Blended"));
-                    trailRenderer.startWidth = Mathf.Max(rb.velocity.magnitude / 100f, 0.1f);
                     trailRenderer.endWidth = 0.0f;
                     trailRenderer.time = 2;
                     trailRenderer.endColor = new Color(0f, 0f, 0f, 0f);
@@ -192,8 +192,8 @@ public class Physic : MonoBehaviour
                 }
                 else
                 {
-                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 100f, 0.2f);
-                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 100f, 0.5f));
+                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 50f, 0.3f);
+                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 5, 0.75f));
                 }
             }
 
@@ -239,6 +239,7 @@ public class Physic : MonoBehaviour
                     {
                         case "Enemy": stepType = Manager.Instance.damageSound; break;
                         case "Grass": stepType = Manager.Instance.grassSound; break;
+                        case "Glass": stepType = Manager.Instance.glassSound; break;
                         case "Metal": stepType = Manager.Instance.metalSound; break;
                     }
                 }

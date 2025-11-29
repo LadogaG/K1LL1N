@@ -1,6 +1,6 @@
-using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
+using System.Collections;
+using UnityEngine;
 
 public class Copier : WeaponBase
 {
@@ -10,6 +10,7 @@ public class Copier : WeaponBase
 
     [SerializeField] GameObject preview;
     GameObject saved;
+    //float size = 1;
 
     void Awake()
     {
@@ -37,11 +38,15 @@ public class Copier : WeaponBase
         Particle(0.1f);
         Shake(0.1f, 0.3f);
         weaponAnimator.SetTrigger("1");
-
+        GameObject p = null;
         foreach (var spawn in spawns)
         {
-            Manager.Instance.Fire(null, saved, spawn.position, spawn.rotation, camera.forward, 10, 0, false);
+            if (saved.GetComponent<Throwable>() == null) p = Manager.Instance.Fire(null, saved, spawn.position, spawn.rotation, camera.forward, 15, 0, false);
+            else p = Manager.Instance.Fire(true, saved, spawn.position, spawn.rotation, camera.forward, 15, 0, false);
         }
+
+        p.transform.localScale = saved.transform.localScale;
+        //p.transform.localScale *= size;
 
         cooldownTimer = cooldown;
         if (saved.GetComponent<Bullet>() != null) cooldownTimer = cooldown/10f;
@@ -49,7 +54,10 @@ public class Copier : WeaponBase
 
     public override void ReleasePrimaryAttack() { }
 
-    public override void StartAltAttack() { }
+    public override void StartAltAttack()
+    {
+        weaponAnimator.SetBool("2", true);
+    }
 
     public override void HoldAltAttack()
     {
@@ -58,16 +66,33 @@ public class Copier : WeaponBase
         if (Physics.BoxCast(camera.position, new Vector3(0.1f, 0.1f, 0f), camera.forward, out RaycastHit hit, camera.rotation, raycastRange))
         {
             Projectile projectile = hit.collider.GetComponent<Projectile>();
+            if (projectile.gameObject == saved) return;
             if (projectile != null)
             {
                 Destroy(saved);
                 saved = Instantiate(projectile.gameObject, preview.transform.position, preview.transform.rotation);
+                saved.transform.SetParent(preview.transform, false);
                 
+                Vector3 v = saved.transform.localScale;
+                float axis = Mathf.Abs(v.x) > Mathf.Abs(v.y) ? (Mathf.Abs(v.x) > Mathf.Abs(v.z) ? 0 : 2) : (Mathf.Abs(v.y) > Mathf.Abs(v.z) ? 1 : 2);
+                //if (saved.tag != "Bullet" && saved.tag != "Rocket" && axis > 0.1f)
+                //{
+                //    size = axis / 0.1f;
+                //    saved.transform.localScale /= size;
+                //}
+                //else
+                //{
+                //    size = 1;
+                //}
                 saved.GetComponent<Projectile>().enabled = false;
-                saved.GetComponent<Collider>().isTrigger = true;
+                Collider[] sc = saved.GetComponents<Collider>();
+                foreach (Collider c in sc)
+                {
+                    c.isTrigger = true;
+                }
                 if (saved.GetComponent<Rigidbody>() != null) Destroy(saved.GetComponent<Rigidbody>());
                 if (saved.GetComponent<Physic>() != null) Destroy(saved.GetComponent<Physic>());
-                if (saved.GetComponent<AudioSource>() != null) Destroy(saved.GetComponent<TrailRenderer>());
+                if (saved.GetComponent<TrailRenderer>() != null) Destroy(saved.GetComponent<TrailRenderer>());
                 if (saved.GetComponent<AudioSource>() != null) Destroy(saved.GetComponent<AudioSource>());
             }
 //            else if (hit.transform.lossyScale.magnitude < 0.9 && !hit.collider.isTrigger)
@@ -82,7 +107,6 @@ public class Copier : WeaponBase
             {                
                 Manager.Instance.Sound(alt);
                 Shake(0.05f, 0.5f);
-                weaponAnimator.SetTrigger("2");
                 Particle(0.05f);
             }
         }
@@ -91,7 +115,10 @@ public class Copier : WeaponBase
         altCooldownTimer = altCooldown;
     }
 
-    public override void ReleaseAltAttack() { }
+    public override void ReleaseAltAttack() 
+    { 
+        weaponAnimator.SetBool("2", false);
+    }
 
     public override string GetAmmoText() => "";
     public override string GetAltAmmoText() => "";
