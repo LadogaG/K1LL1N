@@ -187,7 +187,7 @@ public class Movement : MonoBehaviour
         foreach (var dashHit in dashHits)
         {
             Enemy enemy = dashHit.GetComponent<Enemy>();
-            if (enemy != null)
+            if (enemy != null && enemy.maxHealth > 1)
             {
                 enemy.Damage(10);
             }

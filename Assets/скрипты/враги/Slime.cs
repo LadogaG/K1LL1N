@@ -7,20 +7,20 @@ public class Slime : Enemy
     [SerializeField] float attackDamage = 5f;
     [SerializeField] float attackRange = 5f;
     [SerializeField] float attackCooldown = 1f;
-    [SerializeField] float baseMoveSpeed = 3f;
+    [SerializeField] float moveSpeed = 3f;
     [SerializeField] float jumpForce = 5f;
     [SerializeField] float minJumpInterval = 1f;
     [SerializeField] float maxJumpInterval = 3f;
     [SerializeField] float groundCheckDistance = 0.1f;
     [SerializeField] float dashForce = 10f;
-    [SerializeField]  float mergeRange = 2f;
+    [SerializeField] float mergeRange = 2f;
 
     Rigidbody rb;
     Material slimeMaterial;
     float nextJumpTime;
-    float moveSpeed;
     float lastAttackTime;
     [HideInInspector] public bool isLeader = true;
+    
     [Header("Sound Settings")]
     [SerializeField] AudioClip mergeSound;
     [SerializeField] AudioClip jumpSound;
@@ -42,7 +42,6 @@ public class Slime : Enemy
         slimeMaterial.shader = Shader.Find("Custom/Slime");
 
         nextJumpTime = Time.time + Random.Range(minJumpInterval, maxJumpInterval);
-        moveSpeed = baseMoveSpeed;
         lastAttackTime = 0f;
         InvokeRepeating("FootStep", 0, 0.5f);
     }

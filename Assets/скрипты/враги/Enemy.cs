@@ -84,10 +84,13 @@ public abstract class Enemy : MonoBehaviour
 
         if (health <= 0)
         {
-            Manager.Instance.totalKills++;
-            Manager.Instance.levelKills++;
+            if (maxHealth > 1)
+            {                
+                Manager.Instance.totalKills++;
+                Manager.Instance.levelKills++;
+                Manager.Instance.Kill(damage, target.Value, transform, crit, source);
+            }
 
-            Manager.Instance.Kill(damage, target.Value, transform, crit, source);
             gameObject.tag = "Untagged";
             if (maxHealth > 1) Destroy(healthBar.gameObject);
             for (int i = 0; i < 10; i++) Blood(target.Value);

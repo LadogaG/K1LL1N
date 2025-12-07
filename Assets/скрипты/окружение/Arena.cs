@@ -1,15 +1,25 @@
 using System.Collections.Generic;
 using UnityEngine;
+using System.Linq;
 
 public class Arena : MonoBehaviour
 {
-    [SerializeField] private List<Door> doorsToLock;
-    [SerializeField] private List<GameObject> enemies;
+    [SerializeField] List<Door> doorsToLock;
+    [SerializeField] List<GameObject> enemies;
 
-    private bool arenaActive = false;
+    bool arenaActive = false;
 
     void Awake()
     {
+        if (enemies.Count == 0)
+        {
+            enemies = transform.GetComponentsInChildren<Enemy>()
+                .Where(t => t != transform)
+                .Select(child => child.gameObject)
+                .Where(active => active.activeSelf)
+                .ToList();
+        }
+
         foreach (var enemy in enemies)
         {
             var enemyComponent = enemy.GetComponent<Enemy>();
@@ -24,11 +34,7 @@ public class Arena : MonoBehaviour
     {
         foreach (var enemy in enemies)
         {
-            var enemyComponent = enemy.GetComponent<Enemy>();
-            if (enemyComponent != null)
-            {
-                enemy.tag = "Untagged";
-            }
+            enemy.tag = "Untagged";
         }
     }
 

@@ -31,7 +31,7 @@ public class Physic : MonoBehaviour
         if (rb == null) rb = GetComponent<Rigidbody>();
         else
         {
-            float radius = new Vector3(transform.localScale.x, 0, transform.localScale.z).magnitude / 2;
+            float radius = new Vector3(transform.localScale.x, 0, transform.localScale.z).magnitude / (gameObject.tag == "Player" ? 5 : 3);
             RaycastHit[] hits = new RaycastHit[10];
             int hitCount = Physics.CapsuleCastNonAlloc(transform.position, transform.position + rb.velocity.normalized * radius, radius, rb.velocity.normalized, hits, radius);
 
@@ -192,8 +192,8 @@ public class Physic : MonoBehaviour
                 }
                 else
                 {
-                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 50f, 0.3f);
-                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 5, 0.75f));
+                    trailRenderer.startWidth = Mathf.Min(rb.velocity.magnitude / 200f, 0.3f);
+                    trailRenderer.startColor = new Color(0f, 0f, 0f, Mathf.Min(rb.velocity.magnitude / 50, 0.75f));
                 }
             }
 

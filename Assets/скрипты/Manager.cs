@@ -1,10 +1,12 @@
 using UnityStandardAssets.ImageEffects;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 using DamageNumbersPro.Demo;
 using System.Collections;
 using DamageNumbersPro;
 using UnityEngine.UI;
 using UnityEngine;
+using System.Linq;
 using TMPro;
 
 public class Manager : MonoBehaviour
@@ -96,7 +98,7 @@ public class Manager : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        enemyAmount = GameObject.FindGameObjectsWithTag("Enemy").Length;
+        enemyAmount = GameObject.FindGameObjectsWithTag("Enemy").Where(c => c.GetComponent<Enemy>()?.maxHealth > 1).Count();
         Load();
         gameObject.name = playerName;
 

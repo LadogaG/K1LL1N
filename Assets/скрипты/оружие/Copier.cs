@@ -10,7 +10,7 @@ public class Copier : WeaponBase
 
     [SerializeField] GameObject preview;
     GameObject saved;
-    //float size = 1;
+    float size = 1;
 
     void Awake()
     {
@@ -37,6 +37,7 @@ public class Copier : WeaponBase
         Manager.Instance.Sound(primary);
         Particle(0.1f);
         Shake(0.1f, 0.3f);
+        Manager.Instance.Flash(0.5f);
         weaponAnimator.SetTrigger("1");
         GameObject p = null;
         foreach (var spawn in spawns)
@@ -46,7 +47,7 @@ public class Copier : WeaponBase
         }
 
         p.transform.localScale = saved.transform.localScale;
-        //p.transform.localScale *= size;
+        p.transform.localScale /= size;
 
         cooldownTimer = cooldown;
         if (saved.GetComponent<Bullet>() != null) cooldownTimer = cooldown/10f;
@@ -63,51 +64,68 @@ public class Copier : WeaponBase
     {
         if (altCooldownTimer > 0) return;
 
-        if (Physics.BoxCast(camera.position, new Vector3(0.1f, 0.1f, 0f), camera.forward, out RaycastHit hit, camera.rotation, raycastRange))
+        if (Physics.BoxCast(camera.position, new Vector3(0.1f, 0.1f, 0f), camera.forward, out RaycastHit hit, camera.rotation, raycastRange, ~0, QueryTriggerInteraction.Ignore))
         {
             Projectile projectile = hit.collider.GetComponent<Projectile>();
-            if (projectile.gameObject == saved) return;
             if (projectile != null)
             {
-                Destroy(saved);
-                saved = Instantiate(projectile.gameObject, preview.transform.position, preview.transform.rotation);
-                saved.transform.SetParent(preview.transform, false);
-                
-                Vector3 v = saved.transform.localScale;
-                float axis = Mathf.Abs(v.x) > Mathf.Abs(v.y) ? (Mathf.Abs(v.x) > Mathf.Abs(v.z) ? 0 : 2) : (Mathf.Abs(v.y) > Mathf.Abs(v.z) ? 1 : 2);
-                //if (saved.tag != "Bullet" && saved.tag != "Rocket" && axis > 0.1f)
-                //{
-                //    size = axis / 0.1f;
-                //    saved.transform.localScale /= size;
-                //}
-                //else
-                //{
-                //    size = 1;
-                //}
-                saved.GetComponent<Projectile>().enabled = false;
-                Collider[] sc = saved.GetComponents<Collider>();
-                foreach (Collider c in sc)
+                if (saved != null && (projectile.gameObject == saved || projectile.name == saved.name || projectile.GetComponent<Renderer>().material == saved.GetComponent<Renderer>().material || hit.collider.isTrigger))
                 {
-                    c.isTrigger = true;
-                }
-                if (saved.GetComponent<Rigidbody>() != null) Destroy(saved.GetComponent<Rigidbody>());
-                if (saved.GetComponent<Physic>() != null) Destroy(saved.GetComponent<Physic>());
-                if (saved.GetComponent<TrailRenderer>() != null) Destroy(saved.GetComponent<TrailRenderer>());
-                if (saved.GetComponent<AudioSource>() != null) Destroy(saved.GetComponent<AudioSource>());
-            }
-//            else if (hit.transform.lossyScale.magnitude < 0.9 && !hit.collider.isTrigger)
-//            {
-//                Destroy(prev);
-//                prev = Instantiate(hit.collider.gameObject, preview.transform.position, preview.transform.rotation);
-//
-//                savedProjectile = prev;
-//            }
+                    Vector3 start = camera.position;
+                    Vector3 end = start + camera.forward * raycastRange;
+                    float remaining = (end - hit.point).magnitude;
 
-            if (saved == hit.collider.gameObject)
-            {                
-                Manager.Instance.Sound(alt);
-                Shake(0.05f, 0.5f);
-                Particle(0.05f);
+                    if (Physics.BoxCast(hit.point + camera.forward * 0.001f, new Vector3(0.1f, 0.1f, 0f), camera.forward, out hit, camera.rotation, remaining, ~0, QueryTriggerInteraction.Ignore))
+                    {
+                        projectile = hit.collider.GetComponent<Projectile>();
+                    }
+                    else
+                    {
+                        projectile = null;
+                    }
+                }
+
+                if (projectile != null)
+                {
+                    if (saved != null)
+                    {
+                        if (projectile.tag != saved.tag)
+                        {
+                            Manager.Instance.Sound(alt);
+                            Shake(0.1f, 0.1f);
+                            Particle(0.05f);
+                        }
+                    }
+                    Destroy(saved);
+                    saved = Instantiate(projectile.gameObject, preview.transform.position, preview.transform.rotation);
+                    saved.transform.SetParent(preview.transform, false);
+
+                    if (saved.tag == "Bullet")
+                    {
+                        size = 5;
+                        saved.transform.localScale *= size;
+                    }
+                    else if (saved.tag == "Rocket")
+                    {
+                        size = 4;
+                        saved.transform.localScale *= size;
+                    }
+                    else
+                    {
+                        size = 1;
+                    }
+
+                    saved.GetComponent<Projectile>().enabled = false;
+                    Collider[] sc = saved.GetComponents<Collider>();
+                    foreach (Collider c in sc)
+                    {
+                        c.isTrigger = true;
+                    }
+                    if (saved.GetComponent<Rigidbody>() != null) Destroy(saved.GetComponent<Rigidbody>());
+                    if (saved.GetComponent<Physic>() != null) Destroy(saved.GetComponent<Physic>());
+                    if (saved.GetComponent<TrailRenderer>() != null) Destroy(saved.GetComponent<TrailRenderer>());
+                    if (saved.GetComponent<AudioSource>() != null) Destroy(saved.GetComponent<AudioSource>());
+                }
             }
         }
         weaponAnimator.SetTrigger("2");
