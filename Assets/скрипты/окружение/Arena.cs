@@ -35,6 +35,12 @@ public class Arena : MonoBehaviour
         foreach (var enemy in enemies)
         {
             enemy.tag = "Untagged";
+
+            var enemyComponent = enemy.GetComponent<Enemy>();
+            if (enemyComponent != null)
+            {
+                enemyComponent.enabled = false;
+            }
         }
     }
 

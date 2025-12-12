@@ -82,7 +82,7 @@ public abstract class Enemy : MonoBehaviour
             if (heal > 0f) player.GetComponent<Health>().Heal(transform.position, heal);
         }
 
-        if (health <= 0)
+        if (health <= 0 && gameObject.tag != "Untagged")
         {
             if (maxHealth > 1)
             {                

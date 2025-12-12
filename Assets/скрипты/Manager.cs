@@ -98,7 +98,7 @@ public class Manager : MonoBehaviour
     void Awake()
     {
         Instance = this;
-        enemyAmount = GameObject.FindGameObjectsWithTag("Enemy").Where(c => c.GetComponent<Enemy>()?.maxHealth > 1).Count();
+        enemyAmount = GameObject.FindGameObjectsWithTag("Enemy").Where(c => c.GetComponent<Enemy>().maxHealth > 1).Count();
         Load();
         gameObject.name = playerName;
 
@@ -454,7 +454,6 @@ public class Manager : MonoBehaviour
     public void Win() => StartCoroutine(WinIE());
     IEnumerator WinIE()
     {
-        win = true;
         Flash();
         Time.timeScale = 0;
 
@@ -474,6 +473,7 @@ public class Manager : MonoBehaviour
 
         yield return new WaitForSecondsRealtime(0.5f);
         Panel(continuePanel);
+        win = true;
 
         while (Time.timeScale < 1) Time.timeScale += 0.1f;
     }

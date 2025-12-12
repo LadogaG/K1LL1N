@@ -5,13 +5,20 @@ public class Settings : MonoBehaviour
 {
     private List<ResolutionOption> resolutions = new List<ResolutionOption>
     {
+        new ResolutionOption("192x108", 192, 108),
+        new ResolutionOption("384x216", 384, 216),
+        new ResolutionOption("576x324", 576, 324),
         new ResolutionOption("800x600", 800, 600),
-        new ResolutionOption("1024x768", 1024, 768),
+        new ResolutionOption("960x540", 960, 540),
+        new ResolutionOption("1152x648", 1152, 648),
         new ResolutionOption("1280x720", 1280, 720),
+        new ResolutionOption("1344x756", 1344, 756),
+        new ResolutionOption("1536x864", 1536, 864),
+        new ResolutionOption("1728x972", 1728, 972),
         new ResolutionOption("1920x1080", 1920, 1080)
     };
 
-    private int currentIndex = 3; // Начинаем с максимального (1920x1080)
+    private int currentIndex = 7; // Начинаем с максимального (1920x1080)
     private bool isFullScreen; // Флаг для отслеживания полноэкранного режима
 
     void Start()
